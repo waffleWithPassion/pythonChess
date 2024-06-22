@@ -208,7 +208,7 @@ def movement():
                         locations = []
                     break
                 else:
-                    logging.warning(f"Locations has {len(locations)}?!")
+                    logging.debug(f"promoting (probably (hopefully!))")
 
     if not mouse_left_click:
         mouse_button_released = True
