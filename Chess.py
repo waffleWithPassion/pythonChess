@@ -1,7 +1,11 @@
 ###LIBRARIES###
-import pygame
 import os
 import chess
+import pygame
+import logging
+
+# to see debug messages uncomment the next comment:
+# logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 ###INITIATION###
 pygame.init()
@@ -18,7 +22,9 @@ run = True
 show_moves = False
 was_pressed = False
 selected_sq = None
-mouse_button_down = False
+mouse_button_held = False
+mouse_button_released = True
+show_promotion_bar = False
 clock = pygame.time.Clock()
 font = pygame.font.Font(os.path.join("Fonts", "ColorBasic.otf"), 21)
 
@@ -110,6 +116,7 @@ piece_images_black = {
 wn = pygame.display.set_mode((width, height))
 pygame.display.set_caption("Chess")
 
+
 def draw():
     ###VARIABLES
     global locations, previous_move_to, previous_move_from
@@ -124,7 +131,8 @@ def draw():
 
     ###MOVE GHOST SQUARE###
     if previous_move_from != "" and previous_move_to != "":
-        rect_surf_from, rect_surf_to = pygame.Surface((100, 100), pygame.SRCALPHA), pygame.Surface((100, 100),                                                                                    pygame.SRCALPHA)
+        rect_surf_from, rect_surf_to = pygame.Surface((100, 100), pygame.SRCALPHA), pygame.Surface((100, 100),
+                                                                                                   pygame.SRCALPHA)
         rect_surf_from.fill((51, 51, 255, 127.5))
         rect_surf_to.fill((51, 51, 255, 127.5))
         wn.blit(rect_surf_from, chess_dict[previous_move_from])
@@ -149,30 +157,40 @@ def draw():
             if piece_image:
                 wn.blit(piece_image, (chess_dict[square][0] + 5, chess_dict[square][1] + 5))
 
-
-def movement(): # add promotions
-    ###VARIABLES###
-    global chess_dict, locations, inBoard, mouse_button_down, previous_move_from, previous_move_to
+def movement():
+    global chess_dict, locations, inBoard, previous_move_from, previous_move_to, show_promotion_bar, promotion_move, mouse_button_released, mouse_button_held
     mouse_left_click = pygame.mouse.get_pressed()[0]
     mouse_position = pygame.mouse.get_pos()
     legal_moves = list(inBoard.legal_moves)
 
     ###MOVING PIECES###
-    if mouse_left_click and not mouse_button_down:
-        mouse_button_down = True
+    if mouse_left_click and mouse_button_released and not show_promotion_bar:
+        logging.debug("Mouse left click detected")
+        mouse_button_released = False
         for square_index, value in chess_dict.items():
             rect = pygame.Rect(value[0], value[1], 100, 100)
             if rect.collidepoint(mouse_position):
+                logging.debug(f"Mouse collided with rect {rect}")
                 if len(locations) == 0:
-                    locations.append(chess.square_name(square_index))
+                    square_name = chess.square_name(square_index)
+                    logging.debug(f"No locations, adding square {square_name}")
+                    locations.append(square_name)
                     break
                 elif len(locations) == 1:
                     from_square = locations[0]
                     to_square = chess.square_name(square_index)
-
+                    logging.debug(f"1 location, to_square {to_square}")
                     if from_square != to_square:
+                        logging.debug("From square different than to square")
                         move = chess.Move.from_uci(f"{from_square}{to_square}")
-                        if move in legal_moves:
+                        # check for promotions
+                        if chess.Move.from_uci(f"{from_square}{to_square}q") in legal_moves:
+                            promotion_move = move
+                            show_promotion_bar = True
+                            locations.append(to_square)
+                            logging.debug(f"Promotion move detected: {move}")
+                        elif move in legal_moves:
+                            logging.debug(f"Legal move {move}")
                             print(move)
                             locations.append(to_square)
                             previous_move_from = chess.parse_square(from_square)
@@ -180,12 +198,20 @@ def movement(): # add promotions
                             inBoard.push(move)
                             locations = []
                         elif inBoard.piece_at(chess.parse_square(to_square)) is not None:
+                            logging.debug("There is a piece already")
                             locations[0] = to_square
                         else:
+                            logging.debug("Not a piece but also not legal")
                             locations = []
                     else:
+                        logging.debug("Same square")
                         locations = []
                     break
+                else:
+                    logging.warning(f"Locations has {len(locations)}?!")
+
+    if not mouse_left_click:
+        mouse_button_released = True
 
     ###CIRCLE MOVE HINT###
     if len(locations) == 1:
@@ -197,14 +223,43 @@ def movement(): # add promotions
                 pygame.draw.circle(circle_surf, (0, 0, 0, 35.7), (50, 50), 20)
                 wn.blit(circle_surf, to_square)
 
+    ###PROMOTION###
+    if show_promotion_bar and len(locations) == 2:
+        to_square = locations[1]
+        logging.debug(f"Showing promotion bar at {to_square}")
+        promotion_rects = []
+        if inBoard.turn:  # True = white, False = black
+            promotion_rects.append(wn.blit(piece_images_white[chess.QUEEN], (chess_dict[chess.parse_square(to_square)][0], 0)))
+            promotion_rects.append(wn.blit(piece_images_white[chess.ROOK], (chess_dict[chess.parse_square(to_square)][0], 100)))
+            promotion_rects.append(wn.blit(piece_images_white[chess.BISHOP], (chess_dict[chess.parse_square(to_square)][0], 200)))
+            promotion_rects.append(wn.blit(piece_images_white[chess.KNIGHT], (chess_dict[chess.parse_square(to_square)][0], 300)))
+        else:
+            promotion_rects.append(wn.blit(piece_images_black[chess.QUEEN], (chess_dict[chess.parse_square(to_square)][0], 0)))
+            promotion_rects.append(wn.blit(piece_images_black[chess.ROOK], (chess_dict[chess.parse_square(to_square)][0], 100)))
+            promotion_rects.append(wn.blit(piece_images_black[chess.BISHOP], (chess_dict[chess.parse_square(to_square)][0], 200)))
+            promotion_rects.append(wn.blit(piece_images_black[chess.KNIGHT], (chess_dict[chess.parse_square(to_square)][0], 300)))
 
+        if mouse_left_click and mouse_button_released:
+            logging.debug(f"Mouse click detected for promotion at {mouse_position}")
+            for i, rect in enumerate(promotion_rects):
+                if rect.collidepoint(mouse_position):
+                    promotion_piece = ['q', 'r', 'b', 'n'][i]
+                    move_with_promotion = chess.Move.from_uci(f"{promotion_move.uci()}{promotion_piece}")
+                    inBoard.push(move_with_promotion)
+                    logging.debug(f"Promotion to {promotion_piece}")
+                    previous_move_from = promotion_move.from_square
+                    previous_move_to = promotion_move.to_square
+                    show_promotion_bar = False
+                    locations = []
+                    mouse_button_released = False
+                    break
 while run:
     clock.tick(30)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
         if event.type == pygame.MOUSEBUTTONUP:
-            mouse_button_down = False
+            mouse_button_released = True
     wn.fill((0, 0, 0))
     draw()
     movement()
