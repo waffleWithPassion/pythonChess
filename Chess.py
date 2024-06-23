@@ -4,6 +4,7 @@ import math
 import os
 import sys
 import time
+import webbrowser
 
 import chess
 import pygame
@@ -18,7 +19,7 @@ pygame.font.init()
 inBoard = chess.Board()
 
 ###VARIABLES###
-width = 1250
+width = 1255
 height = 800
 page = 0
 previous_move_from = ""
@@ -26,6 +27,8 @@ previous_move_to = ""
 locations = []
 run = True
 loop = False
+clicked = False
+pressed = False
 show_moves = False
 was_pressed = False
 selected_sq = None
@@ -38,10 +41,13 @@ clock = pygame.time.Clock()
 font = pygame.font.Font(None, 55)
 fontMedium = pygame.font.Font(None, 95)
 fontBIG = pygame.font.Font(None, 100)
+fontGINORMOUS = pygame.font.Font(None, 400)
 
 game_title = fontBIG.render("Chess Game", True, (0, 0, 0))
-replay_instructions = font.render("Press any key to restart, or escape to close the program", True, (0, 0, 0), (255, 0, 255))
-return_instructions = font.render("Press any key to return, or escape to close the program", True, (0, 0, 0), (255, 0, 255))
+replay_instructions = font.render("Press any key to restart, or escape to close the program", True, (0, 0, 0),
+                                  (255, 0, 255))
+return_instructions = font.render("Press any key to return, or escape to close the program", True, (0, 0, 0),
+                                  (255, 0, 255))
 game_credits_text = fontMedium.render("Made by: WafflesOnTrees", True, (0, 0, 0))
 
 ###DICTIONARIES###
@@ -132,6 +138,7 @@ piece_images_black = {
 wn = pygame.display.set_mode((width, height))
 pygame.display.set_caption("Chess")
 
+
 def reset_variables():
     global previous_move_from, previous_move_to, locations, show_moves, was_pressed, selected_sq, rect_surf_to, rect_surf_from, mouse_button_held, mouse_button_released, show_promotion_bar, inBoard, loop
 
@@ -155,11 +162,11 @@ def switch_page():
     mouse_left_click = pygame.mouse.get_pressed()[0]
     mouse_pos = pygame.mouse.get_pos()
 
-    next_page_pos1 = (1200, 25)
+    next_page_pos1 = (1205, 25)
     next_pg_surf1 = pygame.Surface((50, 50), pygame.SRCALPHA)
     next_pg_rect1 = next_pg_surf1.get_rect(topleft=next_page_pos1)
     arrow_text1 = fontBIG.render(">", True, (0, 0, 0))
-    next_page_pos2 = (1200, 725)
+    next_page_pos2 = (1205, 725)
     next_pg_surf2 = pygame.Surface((50, 50), pygame.SRCALPHA)
     next_pg_rect2 = next_pg_surf2.get_rect(topleft=next_page_pos2)
     arrow_text2 = fontBIG.render("<", True, (0, 0, 0))
@@ -172,10 +179,8 @@ def switch_page():
     pygame.draw.rect(next_pg_surf2, (0, 0, 0), (0, 0, 50, 50), 2, border_radius=10)
 
     if mouse_left_click and next_pg_rect1.collidepoint(mouse_pos):
-        # I'd use an if statement (num < max) if I had more than two pages, but I don't...
         page = 1
     if mouse_left_click and next_pg_rect2.collidepoint(mouse_pos):
-        # I'd use an if statement (num < max) if I had more than two pages, but I don't...
         page = 0
 
     next_pg_surf1.blit(arrow_text1, (5, -12))
@@ -184,9 +189,21 @@ def switch_page():
     wn.blit(next_pg_surf2, next_page_pos2)
 
 
+def swap_colors(fen):
+    swapped_fen = ''
+    for char in fen:
+        if char.isupper():
+            swapped_fen += char.lower()
+        elif char.islower():
+            swapped_fen += char.upper()
+        else:
+            swapped_fen += char
+    return swapped_fen
+
+
 def game_over():
     ###VARIABLES###
-    global font, fontBIG, replay_instructions, run, loop
+    global font, fontBIG, replay_instructions, run, loop, inBoard
     ###GAME OVER?###
     outcome = inBoard.outcome(claim_draw=True)  # claim_draw checks for three-fold-repetition and 50 move rule (draw's)
     if outcome is not None:
@@ -265,7 +282,7 @@ def game_over():
                              4, border_radius=25)
 
             # replay instructions
-            replay_instructions_location = replay_instructions.get_rect(center=(width/2, height-200))
+            replay_instructions_location = replay_instructions.get_rect(center=(width / 2, height - 200))
             wn.blit(replay_instructions, replay_instructions_location)
 
             wn.blit(text, text_location)
@@ -426,7 +443,7 @@ def paste_pos():
     mouse_pos = pygame.mouse.get_pos()
     button_text = "PASTE BOARD FEN"
 
-    paste_pos = (800, 0)
+    paste_pos = (805, 0)
     paste_surf = pygame.Surface((400, 150), pygame.SRCALPHA)
     paste_rect = paste_surf.get_rect(topleft=paste_pos)
 
@@ -457,7 +474,7 @@ def copy_pos():
     mouse_pos = pygame.mouse.get_pos()
     button_text = "COPY BOARD FEN"
 
-    paste_pos = (800, 162.5)
+    paste_pos = (805, 162.5)
     paste_surf = pygame.Surface((400, 150), pygame.SRCALPHA)
     paste_rect = paste_surf.get_rect(topleft=paste_pos)
 
@@ -485,7 +502,7 @@ def reset_board():
     mouse_pos = pygame.mouse.get_pos()
     button_text = "RESET BOARD"
 
-    reset_pos = (800, 325)
+    reset_pos = (805, 325)
     reset_surf = pygame.Surface((400, 150), pygame.SRCALPHA)
     reset_rect = reset_surf.get_rect(topleft=reset_pos)
 
@@ -515,7 +532,7 @@ def resign_white():
     mouse_pos = pygame.mouse.get_pos()
     button_text = "WHITE RESIGN"
 
-    resign_pos = (800, 487.5)
+    resign_pos = (805, 487.5)
     resign_surf = pygame.Surface((400, 150), pygame.SRCALPHA)
     resign_rect = resign_surf.get_rect(topleft=resign_pos)
 
@@ -577,7 +594,7 @@ def resign_black():
     mouse_pos = pygame.mouse.get_pos()
     button_text = "BLACK RESIGN"
 
-    resign_pos = (800, 650)
+    resign_pos = (805, 650)
     resign_surf = pygame.Surface((400, 150), pygame.SRCALPHA)
     resign_rect = resign_surf.get_rect(topleft=resign_pos)
 
@@ -621,7 +638,6 @@ def resign_black():
                 wn.blit(text, text_location)
                 pygame.display.flip()
 
-
     resign_surf.fill((255, 0, 255, 0))
     pygame.draw.rect(resign_surf, color, (0, 0, 400, 150), border_radius=25)
     pygame.draw.rect(resign_surf, (0, 0, 0), (0, 0, 400, 150), 8, border_radius=25)
@@ -640,10 +656,8 @@ def game_credits():
     left_click = pygame.mouse.get_pressed()[0]
     mouse_pos = pygame.mouse.get_pos()
     button_text = "Credits"
-    font = pygame.font.Font(None, 36)  # Adjust the font initialization if needed
-    width, height = 1200, 800  # Adjust the screen size if needed
 
-    credit_pos = (800, 0)
+    credit_pos = (805, 0)
     credit_surf = pygame.Surface((400, 150), pygame.SRCALPHA)
     credit_rect = credit_surf.get_rect(topleft=credit_pos)
 
@@ -709,13 +723,190 @@ def game_credits():
     wn.blit(credit_surf, credit_pos)
 
 
+def rules():
+    global run
+
+    color = (109, 131, 137)
+    left_click = pygame.mouse.get_pressed()[0]
+    mouse_pos = pygame.mouse.get_pos()
+    button_text = "Rules"
+
+    resign_pos = (805, 162.5)
+    resign_surf = pygame.Surface((400, 150), pygame.SRCALPHA)
+    resign_rect = resign_surf.get_rect(topleft=resign_pos)
+
+    if resign_rect.collidepoint(mouse_pos):
+        color = (67, 101, 90)
+        if left_click:
+            loop = True
+            while loop:
+                text = fontGINORMOUS.render("No.", True, (0, 0, 0))
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        run = False
+                        pygame.quit()
+                        sys.exit()
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_ESCAPE:
+                            run = False
+                            pygame.quit()
+                            sys.exit()
+                        else:
+                            reset_variables()
+                            loop = False
+                            run = True
+                wn.fill((85, 116, 116))
+                text_x = math.sin(time.perf_counter()) * -50
+                text_location = text.get_rect(center=(width / 2, text_x + 250))
+                text_bg = text.get_size()
+                # outcome rect & outline
+                pygame.draw.rect(wn, (128, 128, 255),
+                                 (text_location[0] - 25, text_location[1] - 25, text_bg[0] + 50, text_bg[1] + 50),
+                                 border_radius=25)
+                pygame.draw.rect(wn, (0, 0, 0),
+                                 (text_location[0] - 25, text_location[1] - 25, text_bg[0] + 50, text_bg[1] + 50),
+                                 4, border_radius=25)
+
+                # replay instructions
+                replay_instructions_location = replay_instructions.get_rect(center=(width / 2, height - 200))
+                wn.blit(return_instructions, replay_instructions_location)
+
+                wn.blit(text, text_location)
+                pygame.display.flip()
+
+    resign_surf.fill((255, 0, 255, 0))
+    pygame.draw.rect(resign_surf, color, (0, 0, 400, 150), border_radius=25)
+    pygame.draw.rect(resign_surf, (0, 0, 0), (0, 0, 400, 150), 8, border_radius=25)
+
+    button_prompt = fontBIG.render(button_text, True, (255, 255, 255))
+    text_rect = button_prompt.get_rect(center=(resign_surf.get_width() // 2, resign_surf.get_height() // 2))
+
+    resign_surf.blit(button_prompt, text_rect.topleft)
+    wn.blit(resign_surf, resign_pos)
+
+
+def takebacks():
+    global previous_move_from, previous_move_to, inBoard, clicked
+
+    button_text = "Takeback"
+    color = (109, 131, 137)
+    button_pos = (805, 325)
+    button_surf = pygame.Surface((400, 150), pygame.SRCALPHA)
+    button_rect = button_surf.get_rect(topleft=button_pos)
+
+    if button_rect.collidepoint(pygame.mouse.get_pos()):
+        color = (67, 101, 90)
+        if pygame.mouse.get_pressed()[0] and not clicked:
+            clicked = True
+            logging.debug("clicked = True")
+            if inBoard.move_stack:
+                logging.debug("removed a move from the move_stack")
+                inBoard.pop()
+                button_text = "Done!"
+            elif not inBoard.move_stack:
+                logging.debug("most likely an empty moke stack")
+                button_text = "Error"
+            else:
+                logging.debug("idk how u got here")
+                button_text = "idk"
+        elif pygame.mouse.get_pressed()[0] and clicked:
+            if inBoard.move_stack:
+                button_text = "Done!"
+            elif not inBoard.move_stack:
+                button_text = "Error"
+            else:
+                button_text = "Invalid"
+
+        if not pygame.mouse.get_pressed()[0]:
+            clicked = False
+            logging.debug("clicked = False")
+            button_text = "Takeback"
+
+    text = fontBIG.render(button_text, True, (255, 255, 255))
+    text_location = text.get_rect(center=(button_surf.get_width() // 2, button_surf.get_height() // 2))
+
+    button_surf.fill((255, 0, 255, 0))
+    pygame.draw.rect(button_surf, color, (0, 0, 400, 150), border_radius=25)
+    pygame.draw.rect(button_surf, (0, 0, 0), (0, 0, 400, 150), 8, border_radius=25)
+    button_surf.blit(text, text_location)
+
+    wn.blit(button_surf, button_pos)
+
+
+def flip_board():
+    global inBoard, pressed
+
+    color = (109, 131, 137)
+    left_click = pygame.mouse.get_pressed()[0]
+    mouse_pos = pygame.mouse.get_pos()
+    button_text = "flip board"
+
+    flip_pos = (805, 487.5)
+    flip_surf = pygame.Surface((400, 150), pygame.SRCALPHA)
+    flip_rect = flip_surf.get_rect(topleft=flip_pos)
+
+    if flip_rect.collidepoint(mouse_pos):
+        color = (67, 101, 90)
+        if left_click and not pressed:
+            pressed = True
+            logging.debug("flipped board")
+            inBoard = inBoard.mirror()
+            fen = inBoard.fen()
+            parts = fen.split(' ')
+            parts[0] = swap_colors(parts[0])
+            if parts[1] == "w":
+                parts[1] = "b"
+            else:
+                parts[1] = "w"
+            new_fen = ' '.join(parts)
+            inBoard.set_fen(new_fen)
+        elif not left_click:
+            pressed = False
+
+    if pressed:
+        button_text = "done"
+
+    flip_surf.fill((255, 0, 255, 0))
+    pygame.draw.rect(flip_surf, color, (0, 0, 400, 150), border_radius=25)
+    pygame.draw.rect(flip_surf, (0, 0, 0), (0, 0, 400, 150), 8, border_radius=25)
+
+    button_prompt = fontBIG.render(button_text, True, (255, 255, 255))
+    text_rect = button_prompt.get_rect(center=(flip_surf.get_width() // 2, flip_surf.get_height() // 2))
+
+    flip_surf.blit(button_prompt, text_rect.topleft)
+    wn.blit(flip_surf, flip_pos)
+
+
+def secret():
+    global pressed
+    color = (109, 131, 137)
+    left_click = pygame.mouse.get_pressed()[0]
+    mouse_pos = pygame.mouse.get_pos()
+    button_text = fontBIG.render("Secret", True, (255, 255, 255))
+    secret_pos = (805, 650)
+    secret_surf = pygame.Surface((400, 150), pygame.SRCALPHA)
+    secret_rect = secret_surf.get_rect(topleft=secret_pos)
+
+    if secret_rect.collidepoint(mouse_pos):
+        color = (67, 101, 90)
+        if left_click and not pressed:
+            pressed = True
+            button_text = button_text = fontBIG.render(":3", True, (255, 255, 255))
+            webbrowser.open("https://www.youtube.com/watch?v=mDUOibsW36w")
+        elif not left_click:
+            pressed = False
+    button_text_center = button_text.get_rect(center=(secret_surf.get_width() // 2, secret_surf.get_height() // 2))
+    pygame.draw.rect(secret_surf, color, (0, 0, 400, 150), border_radius=25)
+    pygame.draw.rect(secret_surf, (0, 0, 0), (0, 0, 400, 150), 8, border_radius=25)
+    secret_surf.blit(button_text, button_text_center)
+    wn.blit(secret_surf, secret_pos)
+
+
 while run:
     clock.tick(30)
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             run = False
-        if event.type == pygame.MOUSEBUTTONUP:
-            mouse_button_released = True
     wn.fill((85, 116, 116))
     game_over()
     draw()
@@ -728,6 +919,10 @@ while run:
         resign_black()
     elif page == 1:
         game_credits()
+        rules()
+        takebacks()
+        flip_board()
+        secret()
     switch_page()
 
     pygame.display.flip()
