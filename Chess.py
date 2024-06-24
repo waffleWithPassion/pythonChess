@@ -834,7 +834,7 @@ def takebacks():
 
 
 def flip_board():
-    global inBoard, pressed
+    global inBoard, pressed, locations
 
     color = (109, 131, 137)
     left_click = pygame.mouse.get_pressed()[0]
@@ -860,6 +860,7 @@ def flip_board():
                 parts[1] = "w"
             new_fen = ' '.join(parts)
             inBoard.set_fen(new_fen)
+            locations = []
         elif not left_click:
             pressed = False
 
